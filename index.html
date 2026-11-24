@@ -1,0 +1,248 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KING ADDITION GAME</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#17134b;color:white;font-family:Arial,sans-serif}
+header{text-align:center;background:#29236f;padding:22px}
+h1{color:#ffe66d;margin:0}
+main{max-width:850px;margin:auto;padding:16px}
+.panel{background:#29236f;border:1px solid #5149a5;border-radius:20px;padding:20px;margin:14px 0;text-align:center}
+h2{color:#ffe66d}
+button,select{padding:13px;border:0;border-radius:12px;margin:6px;font-size:16px;cursor:pointer}
+button{background:#ffe66d;color:#21194e;font-weight:bold;min-height:46px}
+button:disabled{opacity:.4}
+.secondary{background:#80e8ff}
+.hidden{display:none!important}
+.menu,.choices{display:flex;justify-content:center;flex-wrap:wrap}
+.stat{background:#17134b;border-radius:12px;padding:12px;min-width:95px}
+.stats{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.character{font-size:65px;display:inline-block}
+.animate{animation:bounce .55s ease}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-24px) rotate(8deg)}}
+.question{font-size:48px;font-weight:bold;margin:25px}
+.choice{background:white;color:#21194e;min-width:85px}
+.selected{outline:4px solid #ffe66d}
+.feedback{min-height:30px;color:#ffe66d;font-weight:bold}
+footer{text-align:center;padding:20px;color:#bbb}
+</style>
+</head>
+<body>
+<header>
+<h1>👑 KING ADDITION GAME</h1>
+<p>Learn • Play • Win • Become a Math Champion!</p>
+</header>
+<main>
+<section id="home" class="panel">
+<h2>Welcome to Math Kingdom!</h2>
+<div class="stats">
+<div class="stat">⭐ Stars<br><b id="starsHome">0</b></div>
+<div class="stat">🪙 Coins<br><b id="coinsHome">0</b></div>
+<div class="stat">⚡ XP<br><b id="xpHome">0</b></div>
+</div>
+<div class="menu">
+<button onclick="show('game')">▶ Play</button>
+<button onclick="show('characters')">🦸 Characters</button>
+<button onclick="show('worlds')">🌍 Worlds</button>
+<button onclick="show('progress')">🏆 Progress</button>
+<button class="secondary" onclick="toggleMusic()" id="musicButton">🎵 Music: OFF</button>
+</div>
+</section>
+
+<section id="characters" class="panel hidden">
+<h2>Choose your character</h2>
+<div class="choices" id="characterList"></div>
+<button onclick="show('home')">Back</button>
+</section>
+
+<section id="worlds" class="panel hidden">
+<h2>Explore your worlds</h2>
+<div id="worldList"></div>
+<button onclick="show('home')">Back</button>
+</section>
+
+<section id="game" class="panel hidden">
+<h2 id="worldTitle">Math Kingdom</h2>
+<div class="character" id="avatar">🦸</div>
+<p id="characterName">Number Hero</p>
+<label for="level">Choose difficulty:</label><br>
+<select id="level" onchange="newQuestion()">
+<option value="beginner">Beginner: up to 10</option>
+<option value="intermediate">Intermediate: up to 50</option>
+<option value="advanced">Advanced: up to 100</option>
+</select>
+<br>
+<label for="mode">Game mode:</label><br>
+<select id="mode">
+<option value="practice">Practice</option>
+<option value="adventure">Adventure</option>
+<option value="timed">Time Challenge</option>
+</select>
+<div class="question" id="question">2 + 3 = ?</div>
+<div class="choices" id="answers"></div>
+<div class="feedback" id="feedback" aria-live="polite"></div>
+<p id="round">Question 1</p>
+<button class="secondary" onclick="newQuestion()">Next question</button>
+<button onclick="show('home')">Exit</button>
+</section>
+
+<section id="progress" class="panel hidden">
+<h2>🏆 Progress Dashboard</h2>
+<div class="stats">
+<div class="stat">⭐ Stars<br><b id="stars">0</b></div>
+<div class="stat">🪙 Coins<br><b id="coins">0</b></div>
+<div class="stat">⚡ XP<br><b id="xp">0</b></div>
+<div class="stat">✅ Correct<br><b id="correct">0</b></div>
+</div>
+<p id="mastery"></p>
+<button onclick="show('home')">Back Home</button>
+</section>
+</main>
+<footer>King Addition Game – Learning adventure</footer>
+
+<script>
+const characters=[
+{name:"Number Hero",emoji:"🦸"},
+{name:"Jungle Friend",emoji:"🦁"},
+{name:"Math Robot",emoji:"🤖"}
+];
+const worlds=[
+{name:"Math Kingdom",unlocked:true},
+{name:"Animal Jungle",unlocked:false},
+{name:"Robot City",unlocked:false}
+];
+let data={xp:0,stars:0,coins:0,correct:0,answered:0,character:0,world:0};
+try{
+ const saved=JSON.parse(localStorage.getItem("kingAdditionSave"));
+ if(saved)data={...data,...saved};
+}catch(e){}
+let answer=0,round=1,locked=false;
+let audio=null,musicTimer=null,musicOn=false;
+
+function save(){
+ localStorage.setItem("kingAdditionSave",JSON.stringify(data));
+ update();
+}
+function update(){
+ starsHome.textContent=data.stars;
+ coinsHome.textContent=data.coins;
+ xpHome.textContent=data.xp;
+ stars.textContent=data.stars;
+ coins.textContent=data.coins;
+ xp.textContent=data.xp;
+ correct.textContent=data.correct;
+ mastery.textContent=data.answered?
+ "Accuracy: "+Math.round(data.correct/data.answered*100)+"%":
+ "Answer questions to begin your progress!";
+}
+function show(id){
+ document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+ if(id==="characters")renderCharacters();
+ if(id==="worlds")renderWorlds();
+ if(id==="progress")update();
+ if(id==="game")newQuestion();
+}
+function renderCharacters(){
+ characterList.innerHTML="";
+ characters.forEach((c,i)=>{
+ const b=document.createElement("button");
+ b.className="choice "+(i===data.character?"selected":"");
+ b.innerHTML=c.emoji+"<br>"+c.name;
+ b.onclick=()=>{data.character=i;save();renderCharacters()};
+ characterList.appendChild(b);
+ });
+}
+function renderWorlds(){
+ worldList.innerHTML="";
+ worlds.forEach((w,i)=>{
+ const b=document.createElement("button");
+ b.textContent=(w.unlocked?"🌍 ":"🔒 ")+w.name;
+ b.disabled=!w.unlocked;
+ b.onclick=()=>{data.world=i;worldTitle.textContent=w.name;show("game")};
+ worldList.appendChild(b);
+ });
+}
+function newQuestion(){
+ locked=false;
+ feedback.textContent="";
+ roundText();
+ const level=document.getElementById("level").value;
+ const max=level==="beginner"?10:level==="intermediate"?50:100;
+ const a=Math.floor(Math.random()*max)+1;
+ const b=Math.floor(Math.random()*max)+1;
+ answer=a+b;
+ question.textContent=a+" + "+b+" = ?";
+ avatar.textContent=characters[data.character].emoji;
+ characterName.textContent=characters[data.character].name;
+ avatar.classList.remove("animate");
+ const options=new Set([answer]);
+ while(options.size<4){
+ options.add(Math.max(0,answer+Math.floor(Math.random()*15)-7));
+ }
+ answers.innerHTML="";
+ [...options].sort(()=>Math.random()-.5).forEach(n=>{
+ const btn=document.createElement("button");
+ btn.className="choice";
+ btn.textContent=n;
+ btn.onclick=()=>checkAnswer(n);
+ answers.appendChild(btn);
+ });
+}
+function roundText(){roundLabel.textContent="Question "+round;}
+function checkAnswer(n){
+ if(locked)return;
+ locked=true;
+ data.answered++;
+ if(n===answer){
+ data.correct++;data.xp+=10;data.coins+=2;data.stars++;
+ feedback.textContent="🎉 Correct! +10 XP and +2 coins!";
+ avatar.classList.add("animate");
+ correctSound();
+ }else{
+ feedback.textContent="Good try! The correct answer is "+answer+".";
+ wrongSound();
+ }
+ if(data.correct>=5)worlds[1].unlocked=true;
+ if(data.correct>=10)worlds[2].unlocked=true;
+ save();round++;
+}
+function getAudio(){
+ if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();
+ if(audio.state==="suspended")audio.resume();
+}
+function tone(freq,duration=.2){
+ getAudio();
+ const osc=audio.createOscillator(),gain=audio.createGain();
+ osc.frequency.value=freq;
+ gain.gain.setValueAtTime(.1,audio.currentTime);
+ gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);
+ osc.connect(gain);gain.connect(audio.destination);
+ osc.start();osc.stop(audio.currentTime+duration);
+}
+function correctSound(){
+ tone(523);setTimeout(()=>tone(659),130);setTimeout(()=>tone(784),260);
+}
+function wrongSound(){tone(220,.3)}
+function toggleMusic(){
+ if(musicOn){
+ clearInterval(musicTimer);musicOn=false;
+ musicButton.textContent="🎵 Music: OFF";
+ return;
+ }
+ musicOn=true;musicButton.textContent="🎵 Music: ON";
+ const notes=[392,494,587,494,440,523,659,523];
+ let i=0;
+ getAudio();
+ musicTimer=setInterval(()=>{
+ if(musicOn)tone(notes[i++%notes.length],.28);
+ },400);
+}
+update();
+</script>
+</body>
+</html>
